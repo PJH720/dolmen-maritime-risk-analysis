@@ -7,6 +7,7 @@ data:
 	python src/acquire/basemap.py
 ocean:
 	python src/acquire/ocean.py
+	python src/acquire/era5_waves.py
 parse:
 	python src/features/parse_ysg.py
 	python src/features/geocode_ri.py

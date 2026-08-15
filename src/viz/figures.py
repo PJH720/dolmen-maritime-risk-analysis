@@ -26,14 +26,18 @@ INK, ACC, WARN = "#1b2430", "#2f6f8f", "#b5452f"
 
 
 def fig1_distribution():
-    g = gpd.read_parquet(PROC / "grid_5km_marine.parquet").to_crs(4326)
+    g = gpd.read_parquet(PROC / "grid_5km_marine.parquet")
+    g["_cx"] = g.geometry.centroid.x; g["_cy"] = g.geometry.centroid.y
+    g = g.to_crs(4326)
+    import geopandas as _gpd
+    _c = _gpd.GeoSeries(_gpd.points_from_xy(g["_cx"], g["_cy"]), crs=5179).to_crs(4326)
+    g["lon_c"], g["lat_c"] = _c.x.values, _c.y.values
     occ = g[g.n_dolmen > 0]
     coast = gpd.read_file(EXT / "ne_10m_coastline" / "ne_10m_coastline.shp").cx[125:128.2, 34:36]
 
     fig, ax = plt.subplots(figsize=(7.4, 7.6))
     coast.plot(ax=ax, color="#8a97a6", lw=0.7, zorder=1)
-    c = occ.geometry.centroid
-    s = ax.scatter(c.x, c.y, s=occ.n_dolmen * 1.6 + 8, c=occ.n_dolmen,
+    s = ax.scatter(occ["lon_c"], occ["lat_c"], s=occ.n_dolmen * 1.6 + 8, c=occ.n_dolmen,
                    cmap="YlOrRd", ec=INK, lw=0.35, alpha=0.88, zorder=3)
     plt.colorbar(s, ax=ax, shrink=0.62, label="격자당 지석묘 기수")
     ax.set_xlim(125.6, 127.9); ax.set_ylim(34.2, 35.9)
@@ -47,13 +51,17 @@ def fig1_distribution():
 
 def fig2_coefficients():
     sp = json.loads((ROOT / "reports" / "spatial_results.json").read_text())
-    names = ["dist_coast_km", "elev_m", "marine_curr_p90", "marine_grad", "marine_depth"]
-    labels = ["연안거리", "표고", "인접해역 유속p90", "인접해역 수심경사", "인접해역 수심"]
+    names = [n for n in ["dist_coast_km", "elev_m", "marine_curr_p90", "marine_grad",
+                         "marine_depth", "marine_swh_p90"] if n in sp["ols"]]
+    LB = {"dist_coast_km": "연안거리", "elev_m": "표고",
+          "marine_curr_p90": "인접해역 유속p90", "marine_grad": "인접해역 수심경사",
+          "marine_depth": "인접해역 수심", "marine_swh_p90": "인접해역 유의파고p90"}
+    labels = [LB[n] for n in names]
     ob = [sp["ols"][n]["b"] for n in names]; op = [sp["ols"][n]["p"] for n in names]
     lb = [sp["gm_lag"][n]["b"] for n in names]; lp = [sp["gm_lag"][n]["p"] for n in names]
 
     y = np.arange(len(names)); h = 0.36
-    fig, ax = plt.subplots(figsize=(8.2, 4.6))
+    fig, ax = plt.subplots(figsize=(8.6, 5.1))
     ax.barh(y + h/2, ob, h, color=[ACC if p < .05 else "#c9d3db" for p in op],
             ec=INK, lw=.5, label="비공간 OLS")
     ax.barh(y - h/2, lb, h, color=[WARN if p < .05 else "#e8d5cf" for p in lp],
@@ -61,7 +69,7 @@ def fig2_coefficients():
     ax.axvline(0, color=INK, lw=1)
     ax.set_yticks(y); ax.set_yticklabels(labels)
     ax.set_xlabel("표준화 회귀계수")
-    ax.set_title("공간자기상관 보정 시 해양 변수 효과 소멸\n(진한 색 = p<0.05)",
+    ax.set_title("공간자기상관 보정 시 해양 변수 효과 소멸 (ERA5 파고 포함)\n(진한 색 = p<0.05)",
                  fontsize=12, color=INK, pad=10)
     ax.legend(frameon=False, fontsize=9, loc="lower right")
     ax.grid(axis="x", alpha=.2, ls=":")
@@ -73,7 +81,10 @@ def fig3_maup():
     r = json.loads((ROOT / "reports" / "results.json").read_text())
     m = pd.DataFrame(r["maup"])
     fig, ax = plt.subplots(figsize=(7.2, 4.2))
-    for col, lab, c in [("b_curr", "인접해역 유속 p90", ACC), ("b_grad", "인접해역 수심경사", WARN)]:
+    series = [("b_curr", "인접해역 유속 p90", ACC), ("b_grad", "인접해역 수심경사", WARN)]
+    if "b_swh" in m.columns and m["b_swh"].notna().all():
+        series.append(("b_swh", "인접해역 유의파고 p90", "#4a7c59"))
+    for col, lab, c in series:
         pc = m[col.replace("b_", "p_")]
         ax.plot(m.cell_km, m[col], "o-", color=c, lw=1.8, ms=7, label=lab)
         for x, yv, pv in zip(m.cell_km, m[col], pc):
@@ -82,7 +93,8 @@ def fig3_maup():
     ax.axhline(0, color=INK, lw=1, ls="--")
     ax.set_xticks(m.cell_km); ax.set_xlabel("격자 크기 (km)")
     ax.set_ylabel("표준화 회귀계수")
-    ax.set_title("MAUP 민감도: 20km에서 유속 효과 소멸", fontsize=12, color=INK, pad=10)
+    ax.set_title("MAUP 민감도: 20km에서 유속 효과 소멸 (파고는 부호 안정)",
+                 fontsize=12, color=INK, pad=10)
     ax.legend(frameon=False, fontsize=9); ax.grid(alpha=.2, ls=":")
     fig.tight_layout(); fig.savefig(FIG / "fig3_maup.png"); plt.close(fig)
     print("  fig3 ok")
@@ -101,9 +113,11 @@ def fig4_coast_gradient():
     axes[0].grid(axis="y", alpha=.2, ls=":")
 
     occ = d[d.y > 0]
-    axes[1].scatter(occ.marine_curr_p90, occ.y, s=16, alpha=.5, color=WARN, ec="none")
-    axes[1].set_xlabel("인접해역 유속 p90 (m/s)"); axes[1].set_ylabel("격자당 기수")
-    axes[1].set_title("해류 위험도 대 지석묘 기수 (유적 보유 격자)", fontsize=11, color=INK)
+    xc = "marine_swh_p90" if "marine_swh_p90" in occ.columns else "marine_curr_p90"
+    xl = "인접해역 유의파고 p90 (m)" if xc.endswith("swh_p90") else "인접해역 유속 p90 (m/s)"
+    axes[1].scatter(occ[xc], occ.y, s=16, alpha=.5, color=WARN, ec="none")
+    axes[1].set_xlabel(xl); axes[1].set_ylabel("격자당 기수")
+    axes[1].set_title("파고 위험도 대 지석묘 기수 (유적 보유 격자)", fontsize=11, color=INK)
     axes[1].grid(alpha=.2, ls=":")
     fig.tight_layout(); fig.savefig(FIG / "fig4_gradients.png"); plt.close(fig)
     print("  fig4 ok")

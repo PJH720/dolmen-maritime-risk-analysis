@@ -47,6 +47,19 @@ def marine_points() -> pd.DataFrame:
     return df.reset_index(drop=True)
 
 
+def era5_points() -> pd.DataFrame:
+    """ERA5 유의파고 유효 해양셀 추출 (육상은 NaN)."""
+    f = EXT / "era5_wave_stats.nc"
+    if not f.exists():
+        print("[marine] ERA5 없음 — 파고 성분 제외")
+        return pd.DataFrame()
+    ds = xr.open_dataset(f)
+    cols = [c for c in ["swh_p90", "swh_p99", "swh_mean", "wind_p90", "mwp_mean"]
+            if c in ds.data_vars]
+    df = ds[cols].to_dataframe().reset_index().dropna(subset=["swh_p90"])
+    return df.reset_index(drop=True)
+
+
 def main() -> None:
     grid = gpd.read_parquet(PROC / "grid_5km.parquet")
     sea = marine_points()
@@ -68,8 +81,28 @@ def main() -> None:
     grid["marine_depth"] = sea_g["depth_m"].values[idx]
     grid["marine_grad"] = sea_g["sea_grad"].values[idx]
 
+    # ---- ERA5 파고: 최근접 유효 해양셀 ----
+    wav = era5_points()
+    if len(wav):
+        lonc = "lon" if "lon" in wav.columns else "longitude"
+        latc = "lat" if "lat" in wav.columns else "latitude"
+        wg = gpd.GeoDataFrame(wav, geometry=gpd.points_from_xy(wav[lonc], wav[latc]),
+                              crs=4326).to_crs(CRS_M)
+        wtree = cKDTree(np.c_[wg.geometry.x, wg.geometry.y])
+        wd, wi = wtree.query(gxy, k=1)
+        grid["wave_dist_km"] = wd / 1000.0
+        for c in ["swh_p90", "swh_p99", "swh_mean", "wind_p90"]:
+            if c in wg.columns:
+                grid["marine_" + c] = wg[c].values[wi]
+        print(f"[marine] ERA5 유효 해양셀 = {len(wav)}, "
+              f"최근접거리 중앙값 {np.median(wd)/1000:.1f} km")
+        print(f"[marine] swh_p90 범위 {grid['marine_swh_p90'].min():.2f}"
+              f"~{grid['marine_swh_p90'].max():.2f} m")
+
     # 위험도 지수: 표준화 후 PCA 제1주성분 (임의 가중 회피)
     cols = ["marine_curr_p90", "marine_grad"]
+    if "marine_swh_p90" in grid.columns:
+        cols.append("marine_swh_p90")
     X = grid[cols].astype(float)
     Xz = (X - X.mean()) / X.std(ddof=0)
     U, S, Vt = np.linalg.svd(Xz.values - Xz.values.mean(0), full_matrices=False)
@@ -90,7 +123,10 @@ def main() -> None:
 
     occ = grid[grid.n_sites > 0]
     print("\n[marine] 지석묘 보유 격자의 상관(피어슨):")
-    for c in ["dist_coast_km", "marine_curr_p90", "marine_grad", "risk_score", "elev_m"]:
+    corr_cols = ["dist_coast_km", "marine_curr_p90", "marine_grad", "risk_score", "elev_m"]
+    if "marine_swh_p90" in grid.columns:
+        corr_cols.insert(3, "marine_swh_p90")
+    for c in corr_cols:
         r = np.corrcoef(occ["n_dolmen"], occ[c])[0, 1]
         print(f"   n_dolmen ~ {c:18s} r = {r:+.3f}")
 

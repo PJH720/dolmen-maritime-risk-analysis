@@ -57,11 +57,14 @@ def main() -> None:
     d["y"] = d["n_dolmen"].astype(int)
 
     # 표준화 (계수 비교 가능하게)
-    for c in ["dist_coast_km", "elev_m", "marine_curr_p90", "marine_grad", "marine_depth"]:
+    ZCOLS = ["dist_coast_km", "elev_m", "marine_curr_p90", "marine_grad", "marine_depth"]
+    if "marine_swh_p90" in d.columns:
+        ZCOLS.append("marine_swh_p90")
+    for c in ZCOLS:
         d[c + "_z"] = (d[c] - d[c].mean()) / d[c].std(ddof=0)
 
     # ---------- 공선성 진단 ----------
-    cc = ["dist_coast_km", "elev_m", "marine_curr_p90", "marine_grad", "marine_depth"]
+    cc = ZCOLS
     print("\n" + "="*66)
     print("공선성 진단: 예측변수 상관행렬")
     print("="*66)
@@ -89,7 +92,8 @@ def main() -> None:
         "M1_연안거리만": "y ~ dist_coast_km_z",
         "M2_지형통제":   "y ~ dist_coast_km_z + elev_m_z",
         "M3_해양위험도": "y ~ dist_coast_km_z + elev_m_z"
-                        " + marine_curr_p90_z + marine_grad_z + marine_depth_z",
+                        " + marine_curr_p90_z + marine_grad_z + marine_depth_z"
+                        + (" + marine_swh_p90_z" if "marine_swh_p90" in d.columns else ""),
     }
     fits, rows = {}, []
     print("\n" + "="*66)
@@ -116,7 +120,8 @@ def main() -> None:
     print(f"  판정: {'통과 — 해양위험도가 추가 설명력 보유' if gate3 else '실패 — 해양위험도 추가 설명력 없음'}")
 
     m3 = fits["M3_해양위험도"]
-    risk_terms = ["marine_curr_p90_z", "marine_grad_z", "marine_depth_z"]
+    risk_terms = [t for t in ["marine_curr_p90_z", "marine_grad_z", "marine_depth_z",
+                              "marine_swh_p90_z"] if t in m3.params.index]
     print("\n  개별 위험도 계수:")
     for t in risk_terms:
         print(f"    {t:20s} b={m3.params[t]:+.4f}  p={m3.pvalues[t]:.4f}"
@@ -137,32 +142,33 @@ def main() -> None:
         dd = d.copy()
         dd["gx"] = (dd["ctr_x"] // (5000 * agg)).astype(int)
         dd["gy"] = (dd["ctr_y"] // (5000 * agg)).astype(int)
-        a = dd.groupby(["gx", "gy"]).agg(
-            y=("y", "sum"), dist_coast_km=("dist_coast_km", "mean"),
-            elev_m=("elev_m", "mean"), marine_curr_p90=("marine_curr_p90", "mean"),
-            marine_grad=("marine_grad", "mean"), marine_depth=("marine_depth", "mean"),
-        ).reset_index()
-        for c in ["dist_coast_km", "elev_m", "marine_curr_p90", "marine_grad", "marine_depth"]:
+        aggmap = {"y": ("y", "sum")}
+        for c in ZCOLS:
+            aggmap[c] = (c, "mean")
+        a = dd.groupby(["gx", "gy"]).agg(**aggmap).reset_index()
+        for c in ZCOLS:
             a[c + "_z"] = (a[c] - a[c].mean()) / a[c].std(ddof=0)
-        mm = smf.glm("y ~ dist_coast_km_z + elev_m_z + marine_curr_p90_z"
-                     " + marine_grad_z + marine_depth_z",
+        mm = smf.glm("y ~ " + " + ".join(c + "_z" for c in ZCOLS),
                      data=a, family=sm.families.NegativeBinomial(alpha=1.0)).fit()
+        sw = (f"  swh b={mm.params['marine_swh_p90_z']:+.4f} p={mm.pvalues['marine_swh_p90_z']:.4f}"
+              if "marine_swh_p90_z" in mm.params.index else "")
         print(f"  {5*agg:2d}km (n={len(a):4d})  curr b={mm.params['marine_curr_p90_z']:+.4f}"
               f" p={mm.pvalues['marine_curr_p90_z']:.4f}   "
-              f"grad b={mm.params['marine_grad_z']:+.4f} p={mm.pvalues['marine_grad_z']:.4f}")
+              f"grad b={mm.params['marine_grad_z']:+.4f} p={mm.pvalues['marine_grad_z']:.4f}{sw}")
         maup.append({"cell_km": 5*agg, "n": len(a),
                      "b_curr": float(mm.params["marine_curr_p90_z"]),
                      "p_curr": float(mm.pvalues["marine_curr_p90_z"]),
                      "b_grad": float(mm.params["marine_grad_z"]),
-                     "p_grad": float(mm.pvalues["marine_grad_z"])})
+                     "p_grad": float(mm.pvalues["marine_grad_z"]),
+                     "b_swh": float(mm.params.get("marine_swh_p90_z", float("nan"))),
+                     "p_swh": float(mm.pvalues.get("marine_swh_p90_z", float("nan")))})
 
     # ---------- 보조분석: 유적 보유 격자만 (강도 모형) ----------
     occ = d[d.n_sites > 0].copy()
     print("\n" + "="*66)
     print(f"보조분석: 유적 보유 격자만 (n={len(occ)}) — 0 과잉 제거")
     print("="*66)
-    mo = smf.glm("y ~ dist_coast_km_z + elev_m_z + marine_curr_p90_z"
-                 " + marine_grad_z + marine_depth_z + C(landform_g)",
+    mo = smf.glm("y ~ " + " + ".join(c + "_z" for c in ZCOLS) + " + C(landform_g)",
                  data=occ, family=sm.families.NegativeBinomial(alpha=1.0)).fit()
     for pn in mo.params.index:
         if pn == "Intercept": continue

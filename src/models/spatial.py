@@ -21,12 +21,15 @@ ROOT = Path(__file__).resolve().parents[2]
 PROC = ROOT / "data" / "processed"
 REP = ROOT / "reports"
 
-XCOLS = ["dist_coast_km", "elev_m", "marine_curr_p90", "marine_grad", "marine_depth"]
+XCOLS = ["dist_coast_km", "elev_m", "marine_curr_p90", "marine_grad", "marine_depth",
+         "marine_swh_p90"]
 
 
 def main() -> None:
     d = pd.read_csv(PROC / "analysis_table.csv")
-    print(f"[sp] cells = {len(d)}")
+    global XCOLS
+    XCOLS = [c for c in XCOLS if c in d.columns]
+    print(f"[sp] cells = {len(d)} | predictors = {XCOLS}")
 
     print("\n" + "=" * 66)
     print("공선성 진단")
