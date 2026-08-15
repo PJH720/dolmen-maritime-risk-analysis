@@ -29,5 +29,5 @@ env/
 .idea/
 
 # Outputs
-reports/figures/*.png
-!reports/figures/.gitkeep
+# figures tracked (small, needed in README)
+

@@ -1,0 +1,120 @@
+"""결과 그림 생성 (4종)."""
+from __future__ import annotations
+import json, sys
+from pathlib import Path
+import numpy as np
+import pandas as pd
+import geopandas as gpd
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from matplotlib import font_manager
+
+ROOT = Path(__file__).resolve().parents[2]
+PROC = ROOT / "data" / "processed"
+EXT = ROOT / "data" / "external"
+FIG = ROOT / "reports" / "figures"
+
+for cand in ["AppleGothic", "Apple SD Gothic Neo", "NanumGothic", "Malgun Gothic"]:
+    if any(cand == f.name for f in font_manager.fontManager.ttflist):
+        plt.rcParams["font.family"] = cand
+        break
+plt.rcParams["axes.unicode_minus"] = False
+plt.rcParams["figure.dpi"] = 130
+
+INK, ACC, WARN = "#1b2430", "#2f6f8f", "#b5452f"
+
+
+def fig1_distribution():
+    g = gpd.read_parquet(PROC / "grid_5km_marine.parquet").to_crs(4326)
+    occ = g[g.n_dolmen > 0]
+    coast = gpd.read_file(EXT / "ne_10m_coastline" / "ne_10m_coastline.shp").cx[125:128.2, 34:36]
+
+    fig, ax = plt.subplots(figsize=(7.4, 7.6))
+    coast.plot(ax=ax, color="#8a97a6", lw=0.7, zorder=1)
+    c = occ.geometry.centroid
+    s = ax.scatter(c.x, c.y, s=occ.n_dolmen * 1.6 + 8, c=occ.n_dolmen,
+                   cmap="YlOrRd", ec=INK, lw=0.35, alpha=0.88, zorder=3)
+    plt.colorbar(s, ax=ax, shrink=0.62, label="격자당 지석묘 기수")
+    ax.set_xlim(125.6, 127.9); ax.set_ylim(34.2, 35.9)
+    ax.set_title(f"영산강유역 지석묘 분포 (5km 격자, 총 {int(g.n_dolmen.sum()):,}기)",
+                 fontsize=12, color=INK, pad=10)
+    ax.set_xlabel("경도"); ax.set_ylabel("위도")
+    ax.grid(alpha=0.18, ls=":")
+    fig.tight_layout(); fig.savefig(FIG / "fig1_distribution.png"); plt.close(fig)
+    print("  fig1 ok")
+
+
+def fig2_coefficients():
+    sp = json.loads((ROOT / "reports" / "spatial_results.json").read_text())
+    names = ["dist_coast_km", "elev_m", "marine_curr_p90", "marine_grad", "marine_depth"]
+    labels = ["연안거리", "표고", "인접해역 유속p90", "인접해역 수심경사", "인접해역 수심"]
+    ob = [sp["ols"][n]["b"] for n in names]; op = [sp["ols"][n]["p"] for n in names]
+    lb = [sp["gm_lag"][n]["b"] for n in names]; lp = [sp["gm_lag"][n]["p"] for n in names]
+
+    y = np.arange(len(names)); h = 0.36
+    fig, ax = plt.subplots(figsize=(8.2, 4.6))
+    ax.barh(y + h/2, ob, h, color=[ACC if p < .05 else "#c9d3db" for p in op],
+            ec=INK, lw=.5, label="비공간 OLS")
+    ax.barh(y - h/2, lb, h, color=[WARN if p < .05 else "#e8d5cf" for p in lp],
+            ec=INK, lw=.5, label="공간시차 GM_Lag")
+    ax.axvline(0, color=INK, lw=1)
+    ax.set_yticks(y); ax.set_yticklabels(labels)
+    ax.set_xlabel("표준화 회귀계수")
+    ax.set_title("공간자기상관 보정 시 해양 변수 효과 소멸\n(진한 색 = p<0.05)",
+                 fontsize=12, color=INK, pad=10)
+    ax.legend(frameon=False, fontsize=9, loc="lower right")
+    ax.grid(axis="x", alpha=.2, ls=":")
+    fig.tight_layout(); fig.savefig(FIG / "fig2_coefficients.png"); plt.close(fig)
+    print("  fig2 ok")
+
+
+def fig3_maup():
+    r = json.loads((ROOT / "reports" / "results.json").read_text())
+    m = pd.DataFrame(r["maup"])
+    fig, ax = plt.subplots(figsize=(7.2, 4.2))
+    for col, lab, c in [("b_curr", "인접해역 유속 p90", ACC), ("b_grad", "인접해역 수심경사", WARN)]:
+        pc = m[col.replace("b_", "p_")]
+        ax.plot(m.cell_km, m[col], "o-", color=c, lw=1.8, ms=7, label=lab)
+        for x, yv, pv in zip(m.cell_km, m[col], pc):
+            ax.annotate(f"p={pv:.3f}", (x, yv), textcoords="offset points",
+                        xytext=(0, 9), ha="center", fontsize=8, color=c)
+    ax.axhline(0, color=INK, lw=1, ls="--")
+    ax.set_xticks(m.cell_km); ax.set_xlabel("격자 크기 (km)")
+    ax.set_ylabel("표준화 회귀계수")
+    ax.set_title("MAUP 민감도: 20km에서 유속 효과 소멸", fontsize=12, color=INK, pad=10)
+    ax.legend(frameon=False, fontsize=9); ax.grid(alpha=.2, ls=":")
+    fig.tight_layout(); fig.savefig(FIG / "fig3_maup.png"); plt.close(fig)
+    print("  fig3 ok")
+
+
+def fig4_coast_gradient():
+    d = pd.read_csv(PROC / "analysis_table.csv")
+    bins = pd.cut(d.dist_coast_km, [0, 5, 10, 20, 30, 50, 200])
+    g = d.groupby(bins, observed=True).agg(mean_n=("y", "mean"), cells=("y", "size")).reset_index()
+    fig, axes = plt.subplots(1, 2, figsize=(10.4, 4.2))
+    axes[0].bar(range(len(g)), g.mean_n, color=ACC, ec=INK, lw=.5)
+    axes[0].set_xticks(range(len(g)))
+    axes[0].set_xticklabels([str(i) for i in g["dist_coast_km"]], rotation=30, fontsize=8)
+    axes[0].set_ylabel("격자당 평균 기수"); axes[0].set_xlabel("연안거리 구간 (km)")
+    axes[0].set_title("연안거리별 지석묘 밀도", fontsize=11, color=INK)
+    axes[0].grid(axis="y", alpha=.2, ls=":")
+
+    occ = d[d.y > 0]
+    axes[1].scatter(occ.marine_curr_p90, occ.y, s=16, alpha=.5, color=WARN, ec="none")
+    axes[1].set_xlabel("인접해역 유속 p90 (m/s)"); axes[1].set_ylabel("격자당 기수")
+    axes[1].set_title("해류 위험도 대 지석묘 기수 (유적 보유 격자)", fontsize=11, color=INK)
+    axes[1].grid(alpha=.2, ls=":")
+    fig.tight_layout(); fig.savefig(FIG / "fig4_gradients.png"); plt.close(fig)
+    print("  fig4 ok")
+
+
+def main():
+    FIG.mkdir(parents=True, exist_ok=True)
+    print("[fig] generating ...")
+    fig1_distribution(); fig2_coefficients(); fig3_maup(); fig4_coast_gradient()
+    print(f"[fig] saved to {FIG}")
+
+
+if __name__ == "__main__":
+    sys.exit(main())
