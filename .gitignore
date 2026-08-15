@@ -1,0 +1,33 @@
+# Data — 대용량 원본은 버전관리 제외 (스크립트로 재현 가능)
+data/raw/*
+data/interim/*
+data/external/*
+!data/**/.gitkeep
+!data/**/README.md
+# processed 는 소형 산출물만 추적
+data/processed/*.nc
+data/processed/*.tif
+data/processed/*.zip
+
+# Secrets
+.env
+.cdsapirc
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.venv/
+env/
+*.egg-info/
+.pytest_cache/
+
+# macOS / Editor
+.DS_Store
+.vscode/
+.idea/
+
+# Outputs
+reports/figures/*.png
+!reports/figures/.gitkeep

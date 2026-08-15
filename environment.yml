@@ -1,0 +1,43 @@
+name: dolmen
+channels: [conda-forge]
+dependencies:
+  - python=3.11
+  # --- 공간 데이터 ---
+  - geopandas>=0.14
+  - shapely>=2.0
+  - pyproj
+  - rasterio
+  - rioxarray
+  - fiona
+  - contextily
+  # --- 배열 / 기후 ---
+  - xarray
+  - netcdf4
+  - cfgrib
+  - dask
+  # --- 통계 / 공간계량 ---
+  - numpy
+  - pandas
+  - scipy
+  - statsmodels
+  - scikit-learn
+  - esda            # Moran's I
+  - libpysal        # 공간 가중행렬
+  - spreg           # 공간회귀
+  - pointpats       # 점패턴 분석
+  # --- 시각화 ---
+  - matplotlib
+  - seaborn
+  - folium
+  - cartopy
+  # --- 유틸 ---
+  - requests
+  - pyyaml
+  - tqdm
+  - jupyterlab
+  - pytest
+  - pip
+  - pip:
+      - opendrift            # 표류 시뮬레이션
+      - cdsapi               # ERA5 다운로드
+      - copernicusmarine     # CMEMS 해류

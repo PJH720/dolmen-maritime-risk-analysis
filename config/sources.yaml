@@ -1,0 +1,89 @@
+# ============================================================
+# 데이터 소스 레지스트리
+# status: verified(직접 접속 확인) / needs_key(가입 필요) / manual(수동 확보)
+# ============================================================
+
+megaliths:
+  osm_overpass:
+    status: verified
+    desc: "OSM megalith_type 태그 전세계 거석 (dolmen/menhir/passage_grave 등)"
+    endpoint: "https://overpass.private.coffee/api/interpreter"
+    mirrors:
+      - "https://overpass-api.de/api/interpreter"
+      - "https://overpass.osm.jp/api/interpreter"
+      - "https://overpass.kumi.systems/api/interpreter"
+    license: "ODbL 1.0 (attribution 필수)"
+    n_features: 14086
+    caveat: "심각한 조사강도 편향. 유럽 13855 vs 한국 27. 그대로 쓰면 결론 역전됨."
+
+  khs_korea:
+    status: verified
+    desc: "국가유산청 지정 지석묘 (위경도 포함, 인증키 불필요)"
+    endpoint: "https://www.khs.go.kr/cha/SearchKindOpenapiList.do"
+    detail: "https://www.khs.go.kr/cha/SearchKindOpenapiDt.do"
+    n_features: 151
+    caveat: "지정문화재만. 전국 실제 고인돌 3~4만기 중 극히 일부."
+
+  khs_gis_wfs:
+    status: needs_key
+    desc: "국가유산 공간정보 WMS/WFS (매장유산 레이어 포함)"
+    endpoint: "https://gis-heritage.go.kr/checkKey.do"
+    docs: "https://gis-heritage.go.kr/helpAPI.do"
+    caveat: "도메인 등록 후 key 발급. 매장유산 레이어가 핵심."
+
+  paulsson2019:
+    status: manual
+    desc: "Schulz Paulsson (2019) PNAS — 유럽 거석 방사성탄소 2,410건"
+    doi: "10.1073/pnas.1813268116"
+    si_url: "https://www.pnas.org/doi/suppl/10.1073/pnas.1813268116"
+    caveat: "SI Dataset 수동 다운로드 → data/external/ 배치. 연대 통제변수의 핵심."
+
+  jeonnam_survey:
+    status: manual
+    desc: "전남 고인돌 정밀지표조사 보고서 (목포대 박물관 / 국립나주문화유산연구소)"
+    caveat: "PDF 표 → 수동 디지타이징. 화순·고창 밀집도의 유일한 신뢰 소스."
+
+basemap:
+  natural_earth_coastline:
+    status: verified
+    url: "https://naciscdn.org/naturalearth/10m/physical/ne_10m_coastline.zip"
+  natural_earth_land:
+    status: verified
+    url: "https://naciscdn.org/naturalearth/10m/physical/ne_10m_land.zip"
+
+maritime_risk:
+  gebco_2024:
+    status: manual
+    desc: "전지구 수심 격자 15초 해상도"
+    url: "https://www.gebco.net/data_and_products/gridded_bathymetry_data/"
+    caveat: "~7GB. 황해 서브셋만 잘라 쓸 것."
+
+  hycom_glby:
+    status: verified
+    desc: "HYCOM 글로벌 해류 재분석 (OPeNDAP, 키 불필요)"
+    endpoint: "https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0"
+    caveat: "1994~현재. 청동기 해류 아님 — 구조적 유사성 가정 명시 필요."
+
+  era5_wave:
+    status: needs_key
+    desc: "ERA5 유의파고/풍속 (1940~)"
+    endpoint: "https://cds.climate.copernicus.eu/api"
+    caveat: "CDS 무료 가입 → ~/.cdsapirc 에 키 저장. Claude는 키 입력 불가, 직접 설정 필요."
+
+  cmems_currents:
+    status: needs_key
+    desc: "Copernicus Marine 표층 해류 (OpenDrift 입력용)"
+    caveat: "copernicusmarine login 으로 직접 인증."
+
+  noaa_wrecks:
+    status: verified
+    desc: "NOAA 난파선·장애물 (ENC Wrecks). 위험도 프록시."
+    url: "https://www.nauticalcharts.noaa.gov/data/wrecks-and-obstructions.html"
+    caveat: "근현대 기록. 고대 위험도의 직접 증거 아닌 지형적 프록시로만 사용."
+
+controls:
+  hyde_landuse:
+    status: manual
+    desc: "HYDE 3.3 홀로세 인구/경작지 재구성 — 인구압 통제변수"
+    url: "https://landuse.sites.uu.nl/hyde-project/"
+    caveat: "고인돌 밀도의 대안가설(농경사회 인구밀도) 통제에 필수."
