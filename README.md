@@ -1,85 +1,131 @@
-# 고인돌–고대 항해 위험도 상관관계 분석
+# Dolmen Distribution and Ancient Maritime Hazard
 
-영산강유역 고인돌 밀집이 고대 해양 이동의 위험도와 연관되는지
-공간통계로 검정한 프로젝트.
+*[한국어 README](README.ko.md)*
 
-## 결론
+A spatial-statistical test of whether dolmen density in the Yeongsan River basin
+(Jeollanam-do, South Korea) is associated with the physical hazard of adjacent seas.
 
-> **가설 기각.** 공간자기상관을 보정하면 해양 위험도 변수의 효과가
-> 전부 소멸하고 부호까지 뒤집힌다. 영산강유역 지석묘 분포는
-> 인접 해역의 물리적 위험도가 아니라 **공간적 군집 그 자체**로 설명된다.
+## Background
 
-ERA5 유의파고를 포함한 위험도 4성분 전부에 대해 성립한다.
+The Korean peninsula holds roughly 35,000 dolmens — about 40% of the world total —
+with the heaviest concentration in the southwest. One proposed explanation is that
+megaliths mark departure or return points of prehistoric sea voyages, and therefore
+cluster where maritime crossings were most dangerous.
 
-| 변수 | 비공간 OLS | 공간시차 GM_Lag |
+This repository tests that proposition directly, using survey-report counts rather
+than designation records, and reports the result whether or not it supports the
+hypothesis.
+
+## Result
+
+> **Hypothesis rejected.** Once spatial autocorrelation is accounted for, every
+> maritime hazard variable loses significance and four of them reverse sign.
+> Dolmen density in the study area is explained by spatial clustering itself,
+> not by the physical hazard of the neighbouring sea.
+
+This holds across all four hazard components, including ERA5 significant wave height.
+
+| Predictor | Non-spatial OLS | Spatial lag (GM_Lag) |
 |---|---|---|
-| 연안거리 | −0.307 (p<0.0001) | +0.056 (p=0.321) |
-| 인접해역 유속 p90 | +0.146 (p=0.0001) | −0.071 (p=0.062) |
-| 인접해역 수심경사 | −0.200 (p<0.0001) | +0.007 (p=0.851) |
-| 인접해역 수심 | −0.293 (p<0.0001) | +0.059 (p=0.272) |
-| 인접해역 유의파고 p90 | −0.139 (p=0.0020) | +0.021 (p=0.604) |
-| **공간시차 ρ** | — | **+1.184 (p<0.0001)** |
+| Distance to coast | −0.307 (p<0.0001) | +0.056 (p=0.321) |
+| Adjacent-sea current speed p90 | +0.146 (p=0.0001) | −0.071 (p=0.062) |
+| Adjacent-sea bathymetric gradient | −0.200 (p<0.0001) | +0.007 (p=0.851) |
+| Adjacent-sea depth | −0.293 (p<0.0001) | +0.059 (p=0.272) |
+| Adjacent-sea significant wave height p90 | −0.139 (p=0.0020) | +0.021 (p=0.604) |
+| **Spatial lag ρ** | — | **+1.184 (p<0.0001)** |
 
-추가로, **파고 계수는 비공간 모형에서조차 음수**다. 파고가 높은 해역에
-인접할수록 지석묘가 적다는 뜻으로, 원가설이 예측한 방향과 반대다.
+`OLS R² = 0.094` (residual Moran's I = +0.367, p=0.001) · `GM_Lag Pseudo R² = 0.409`
 
-![계수 비교](reports/figures/fig2_coefficients.png)
+Note the wave-height coefficient: it is **negative even in the non-spatial model**.
+Proximity to rougher seas is associated with *fewer* dolmens — the opposite of what
+the hypothesis predicts.
 
-## 데이터
+![Coefficient comparison](reports/figures/fig2_coefficients.png)
 
-| 소스 | 규모 | 확보 |
+## Data
+
+| Source | Scale | Access |
 |---|---|---|
-| 『영산강유역 지석묘』Ⅴ 1~5권 | 3,175면 → 유적 1,638건 / 7,027기 | 파싱 완료 |
-| 국가유산청 OpenAPI | 지정 지석묘 169건 | 키 불필요 |
-| OSM Overpass 거석 | 14,105건 | 키 불필요 |
-| NOAA ETOPO 2022 수심 | 30초 격자 | 키 불필요 |
-| HYCOM GLBy0.08 해류 | 표층 49시점 | 키 불필요 |
-| ERA5 유의파고 | 2017–2020 · 1,968시점 | 확보 (CDS 키) |
+| *Yeongsan River Basin Dolmens* Vol. Ⅴ, books 1–5 | 3,175 pages → 1,638 sites / 7,027 dolmens | Manual acquisition |
+| Korea Heritage Service OpenAPI | 169 designated dolmens | No key required |
+| OSM Overpass megaliths | 14,105 features | No key required |
+| NOAA ETOPO 2022 bathymetry | 30-arcsecond grid | No key required |
+| HYCOM GLBy0.08 surface currents | 49 timesteps | No key required |
+| ERA5 significant wave height | 2017–2020, 1,968 timesteps | CDS key required |
 
-## 실행
+The source PDFs (~1.3 GB) are gitignored. Place them in `data/external/` to reproduce
+the parsing stage.
+
+## Pipeline
 
 ```bash
 conda env create -f environment.yml && conda activate dolmen
 
-make data      # 1차 수집 (OSM / 국가유산청 / Natural Earth)
-make ocean     # ETOPO 수심 + HYCOM 해류 + ERA5 파고
-make parse     # PDF 5권 파싱 + 리 단위 지오코딩
-make grid      # 5km 격자 + 해양노출 지수
-make model     # 음이항 회귀 + 공간회귀
-make figures   # 그림 4종
+make data      # OSM / Korea Heritage Service / Natural Earth
+make ocean     # ETOPO bathymetry + HYCOM currents + ERA5 waves
+make parse     # Parse 5 report volumes, geocode to ri (里) level
+make grid      # 5 km grid (EPSG:5179) + marine exposure index
+make model     # Negative binomial + spatial regression
+make figures   # Four result figures
 ```
 
-원본 PDF(약 1.3GB)는 `.gitignore` 대상이다. `data/external/` 에 직접 배치할 것.
+`make ocean` needs a Copernicus CDS key at `~/.cdsapirc`. The other stages run
+without credentials.
 
-## 문서
+## Documentation
 
-| 문서 | 내용 |
+| Document | Contents |
 |---|---|
-| [00_hypothesis](docs/00_hypothesis.md) | 원가설의 구조적 문제 4가지, 재정식화 |
-| [01_data_inventory](docs/01_data_inventory.md) | 자료 실측, **OSM 515배 편향** |
-| [02_methodology](docs/02_methodology.md) | 게이트 방식 설계 |
-| [03_project_plan](docs/03_project_plan.md) | A–Z 계획, 사전 중단조건 |
-| [04_results](docs/04_results.md) | 결과 전문 |
-| [05_limitations](docs/05_limitations.md) | 한계 (등급별) |
+| [00_hypothesis](docs/00_hypothesis.md) | Four structural problems with the original hypothesis; reformulation |
+| [01_data_inventory](docs/01_data_inventory.md) | Measured data inventory; **OSM 515× survey bias** |
+| [02_methodology](docs/02_methodology.md) | Gate-based analysis design |
+| [03_project_plan](docs/03_project_plan.md) | A–Z plan with pre-declared stopping rules |
+| [04_results](docs/04_results.md) | Full results |
+| [05_limitations](docs/05_limitations.md) | Limitations, graded by severity |
 
-## 방법론적 발견 3가지
+Documentation is in Korean; code and comments are mixed Korean/English.
 
-1. **OSM 조사강도 515배 편향** — 유럽 탐지율 39.6% vs 한국 0.077%.
-   한반도가 세계 고인돌의 약 40%를 보유함에도 OSM에는 27건뿐이다.
-   원자료로 전지구 회귀를 돌리면 결론이 정반대로 나온다.
+## Three methodological findings
 
-2. **지정건수 ≠ 개체수** — 국가유산청 지정 단위는 "군(群)"이라
-   화순 지석묘군 1건이 실제 596기다. 개체수는 지표조사 보고서에만 있다.
+**1. OSM megalith data carries a 515× survey-intensity bias.**
+Detection rate is 39.6% in Europe versus 0.077% in Korea. The peninsula holds ~40%
+of the world's dolmens but appears in OSM with 27 records. Running a global
+regression on the raw data inverts the conclusion.
 
-3. **공간자기상관 미보정의 위험** — 비공간 모형에서 p<0.0001로 나온
-   해양 효과 3개가 공간보정 후 전부 소멸·반전했다. 이 프로젝트의 핵심 교훈이다.
+**2. Designation count ≠ monument count.**
+Korea Heritage Service designations are group-level: one Hwasun dolmen-group record
+covers 596 individual monuments. Per-monument counts exist only in field survey
+reports, which is why the PDF parsing stage exists.
 
-## 출처
+**3. Ignoring spatial autocorrelation manufactures significance.**
+Four maritime effects significant at p<0.0001 in the non-spatial model vanished and
+reversed after spatial correction. This is the central lesson of the project.
 
-- 『영산강유역 지석묘』Ⅴ (전남 지표조사 보고서)
-- 국가유산청 국가유산포털 OpenAPI (공공누리)
-- OpenStreetMap contributors (ODbL 1.0)
-- NOAA NCEI ETOPO 2022 / HYCOM Consortium GLBy0.08
-- Natural Earth (Public Domain)
+## Pre-registration and honest reporting
+
+Stopping rules were declared in `docs/03_project_plan.md` *before* the analysis was
+run. Rule 3 (sign reversal across grid scales) triggered, so all results are
+downgraded from confirmatory to **exploratory**. No model was re-specified in search
+of significance.
+
+Conditions that would overturn the conclusion are listed in
+[`docs/05_limitations.md`](docs/05_limitations.md). The main one is that ERA5's 0.25°
+grid cannot resolve local wave conditions in the southwestern archipelago; a nested
+coastal wave model (SWAN, WAVEWATCH III) would be the substantive rebuttal.
+
+## Sources and licensing
+
+- *영산강유역 지석묘* Ⅴ (Yeongsan River basin dolmen survey reports)
+- Korea Heritage Service National Heritage Portal OpenAPI — KOGL
+- OpenStreetMap contributors — ODbL 1.0
+- NOAA NCEI ETOPO 2022 · HYCOM Consortium GLBy0.08
+- Copernicus Climate Change Service (C3S) ERA5 — contains modified Copernicus
+  Climate Change Service information; neither the European Commission nor ECMWF is
+  responsible for any use of this information
+- Natural Earth — Public Domain
 - Schulz Paulsson, B. (2019) *PNAS* 116(9):3460–3465
-- UNESCO WHC #977 Gochang, Hwasun and Ganghwa Dolmen Sites
+- UNESCO WHC #977, Gochang, Hwasun and Ganghwa Dolmen Sites
+
+Code in this repository is available under the MIT License. Derived datasets in
+`data/processed/` are 5 km aggregates; underlying report content remains with its
+original rights holders.
