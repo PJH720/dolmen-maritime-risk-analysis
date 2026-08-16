@@ -16,14 +16,59 @@ This repository tests that proposition directly, using survey-report counts rath
 than designation records, and reports the result whether or not it supports the
 hypothesis.
 
-## Result
+## Result (v1, provisional)
 
-> **Hypothesis rejected.** Once spatial autocorrelation is accounted for, every
-> maritime hazard variable loses significance and four of them reverse sign.
-> Dolmen density in the study area is explained by spatial clustering itself,
-> not by the physical hazard of the neighbouring sea.
+> These are **v1 interim findings.** A v2 iteration with additional data and a
+> revised hypothesis is planned, so the statements below describe *what is observed
+> under the current data and specification* — not a settled conclusion.
 
-This holds across all four hazard components, including ERA5 significant wave height.
+The original hypothesis predicted a **monotonic positive** relationship: rougher seas,
+more dolmens. That specific form is **not supported** by the current data.
+
+This does **not** mean dolmen distribution is unrelated to the marine environment.
+If anything, the opposite.
+
+### What was found: an inverted-U relationship with wave height
+
+| Wave quartile | Mean SWH p90 | Dolmens | Share |
+|---|---|---|---|
+| Q1 (calmest) | 0.29 m | 353 | 5.4% |
+| **Q2** | **0.57 m** | **2,998** | **45.8%** |
+| **Q3** | **0.96 m** | **2,738** | **41.9%** |
+| Q4 (roughest) | 1.06 m | 450 | 6.9% |
+
+**87.7% of all dolmens fall in the two middle quartiles**, with both extremes nearly
+empty. A quadratic term test gives `LR = 159.21, p ≈ 1.7e-36`, with an estimated
+peak at **0.684 m**.
+
+So a relationship exists, and a strong one. It is simply **non-monotonic**, which is
+why linear specifications failed to capture it — and why a rank correlation reports
+near-zero (Spearman ρ = +0.049, p = 0.10): the inverted U cancels out under a
+monotonic measure.
+
+![Wave non-linearity](reports/figures/fig5_wave_nonlinear.png)
+
+### Three readings to avoid
+
+**1. A negative coefficient is not "no effect."**
+In the full linear specification the wave coefficient is −0.238 (p<0.0001). That is a
+*directional* finding — proximity to rougher seas is associated with *fewer* dolmens.
+It runs opposite to the hypothesis, but it is not an absence of information. It also
+strengthens with aggregation scale (5 km −0.238 → 20 km −0.670), which argues against
+it being noise.
+
+**2. The wave coefficient's sign is specification-dependent.**
+Univariate +0.268 → +coast distance +0.241 → +depth −0.018 → full model −0.238. Wave
+height and depth correlate at r = −0.507, producing a suppression structure. Any
+single coefficient reported in isolation is misleading.
+
+**3. Non-significance after spatial correction is an identification failure, not
+proof of independence.**
+With ρ = 1.18, the spatial lag term absorbs the environmental signal; the two
+components cannot be separated under the current design. Absence of evidence is not
+evidence of absence.
+
+### Linear-specification regression (for reference)
 
 | Predictor | Non-spatial OLS | Spatial lag (GM_Lag) |
 |---|---|---|
@@ -36,9 +81,9 @@ This holds across all four hazard components, including ERA5 significant wave he
 
 `OLS R² = 0.094` (residual Moran's I = +0.367, p=0.001) · `GM_Lag Pseudo R² = 0.409`
 
-Note the wave-height coefficient: it is **negative even in the non-spatial model**.
-Proximity to rougher seas is associated with *fewer* dolmens — the opposite of what
-the hypothesis predicts.
+This table assumes a **monotonic linear** form. Given the inverted-U structure above,
+these coefficients should be read as a non-linear relationship compressed into a
+linear frame, not as the relationship itself.
 
 ![Coefficient comparison](reports/figures/fig2_coefficients.png)
 
@@ -82,6 +127,7 @@ without credentials.
 | [03_project_plan](docs/03_project_plan.md) | A–Z plan with pre-declared stopping rules |
 | [04_results](docs/04_results.md) | Full results |
 | [05_limitations](docs/05_limitations.md) | Limitations, graded by severity |
+| [06_v2_roadmap](docs/06_v2_roadmap.md) | v2 plan — the "navigable band" hypothesis |
 
 Documentation is in Korean; code and comments are mixed Korean/English.
 
@@ -97,18 +143,30 @@ Korea Heritage Service designations are group-level: one Hwasun dolmen-group rec
 covers 596 individual monuments. Per-monument counts exist only in field survey
 reports, which is why the PDF parsing stage exists.
 
-**3. Ignoring spatial autocorrelation manufactures significance.**
-Four maritime effects significant at p<0.0001 in the non-spatial model vanished and
-reversed after spatial correction. This is the central lesson of the project.
+**3. Assuming monotonicity can hide a strong relationship.**
+Wave height relates to dolmen density in an inverted U, yet a rank correlation reports
+ρ = +0.049 and linear models flip sign depending on controls. Inspect the descriptive
+structure before imposing a functional form.
+
+**4. Ignoring spatial autocorrelation manufactures significance — and correcting it
+can hide real effects.**
+Maritime effects significant at p<0.0001 vanished after spatial correction. But with
+ρ = 1.18 exceeding the usual stationarity bound, this is better read as failure to
+separate environmental from spatial variation than as evidence of no relationship.
 
 ## Pre-registration and honest reporting
 
 Stopping rules were declared in `docs/03_project_plan.md` *before* the analysis was
-run. Rule 3 (sign reversal across grid scales) triggered, so all results are
+run. Rule 3 (sign reversal across grid scales) triggered, so all v1 results are
 downgraded from confirmatory to **exploratory**. No model was re-specified in search
 of significance.
 
-Conditions that would overturn the conclusion are listed in
+The inverted-U structure is a **post hoc discovery**, not a pre-registered
+prediction. It is therefore treated as a hypothesis to be tested on independent data
+in v2, not as an established finding. The v2 pre-registration plan is in
+[`docs/06_v2_roadmap.md`](docs/06_v2_roadmap.md).
+
+Conditions that would revise these provisional findings are listed in
 [`docs/05_limitations.md`](docs/05_limitations.md). The main one is that ERA5's 0.25°
 grid cannot resolve local wave conditions in the southwestern archipelago; a nested
 coastal wave model (SWAN, WAVEWATCH III) would be the substantive rebuttal.

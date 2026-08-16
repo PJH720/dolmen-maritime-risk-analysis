@@ -127,7 +127,59 @@ def main():
     FIG.mkdir(parents=True, exist_ok=True)
     print("[fig] generating ...")
     fig1_distribution(); fig2_coefficients(); fig3_maup(); fig4_coast_gradient()
+    fig5_wave_nonlinear()
     print(f"[fig] saved to {FIG}")
+
+
+
+
+def fig5_wave_nonlinear():
+    """파고–지석묘 역U자 구조 + 계수 부호의 명세 의존성."""
+    import json as _j
+    d = pd.read_csv(PROC / "analysis_table.csv")
+    nl = _j.loads((ROOT / "reports" / "nonlinear_results.json").read_text())
+
+    fig, axes = plt.subplots(1, 2, figsize=(11.2, 4.4))
+
+    # (좌) 파고 구간별 총 기수
+    d["q"] = pd.qcut(d.marine_swh_p90, 4, duplicates="drop")
+    g = d.groupby("q", observed=True).agg(total=("y", "sum"),
+                                          swh=("marine_swh_p90", "mean")).reset_index()
+    share = g.total / g.total.sum() * 100
+    cols = ["#c9d3db", ACC, ACC, "#c9d3db"]
+    axes[0].bar(range(len(g)), g.total, color=cols, ec=INK, lw=.6)
+    for i, (t, s) in enumerate(zip(g.total, share)):
+        axes[0].annotate(f"{int(t):,}기\n{s:.1f}%", (i, t), ha="center",
+                         va="bottom", fontsize=8.5, color=INK)
+    axes[0].set_xticks(range(len(g)))
+    axes[0].set_xticklabels([f"Q{i+1}\n{v:.2f}m" for i, v in enumerate(g.swh)], fontsize=9)
+    axes[0].set_ylabel("총 지석묘 기수"); axes[0].set_xlabel("인접해역 유의파고 p90 4분위")
+    peak = nl["quadratic"]["peak_swh_m"]
+    axes[0].set_title(f"중간 파고대 집중 (중간 2분위 {nl['mid_quartile_share_pct']:.1f}%)\n"
+                      f"추정 정점 {peak:.2f} m", fontsize=11, color=INK)
+    axes[0].set_ylim(0, g.total.max() * 1.28)
+    axes[0].grid(axis="y", alpha=.2, ls=":")
+
+    # (우) 명세별 파고 계수 부호 변화
+    sp = nl["spec_dependence"]
+    ks = list(sp.keys()); bs = [sp[k]["b"] for k in ks]; ps = [sp[k]["p"] for k in ks]
+    c2 = [ACC if b > 0 else WARN for b in bs]
+    c2 = [c if p < .05 else "#d8dee3" for c, p in zip(c2, ps)]
+    axes[1].bar(range(len(ks)), bs, color=c2, ec=INK, lw=.6)
+    axes[1].axhline(0, color=INK, lw=1)
+    for i, (b, p) in enumerate(zip(bs, ps)):
+        axes[1].annotate(f"p={p:.3f}", (i, b), ha="center",
+                         va="bottom" if b > 0 else "top",
+                         fontsize=8.5, color=INK,
+                         xytext=(0, 4 if b > 0 else -12), textcoords="offset points")
+    axes[1].set_xticks(range(len(ks))); axes[1].set_xticklabels(ks, fontsize=9)
+    axes[1].set_ylabel("파고 회귀계수")
+    axes[1].set_title(f"통제변수 구성에 따른 부호 반전\n(파고–수심 r="
+                      f"{nl['swh_depth_corr']:+.2f}, 억제 구조)", fontsize=11, color=INK)
+    axes[1].grid(axis="y", alpha=.2, ls=":")
+
+    fig.tight_layout(); fig.savefig(FIG / "fig5_wave_nonlinear.png"); plt.close(fig)
+    print("  fig5 ok")
 
 
 if __name__ == "__main__":

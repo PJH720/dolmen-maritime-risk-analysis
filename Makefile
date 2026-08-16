@@ -17,6 +17,7 @@ grid:
 model:
 	python src/models/analysis.py
 	python src/models/spatial.py
+	python src/models/nonlinear.py
 figures:
 	python src/viz/figures.py
 diag:
