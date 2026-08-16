@@ -5,16 +5,40 @@
 A spatial-statistical test of whether dolmen density in the Yeongsan River basin
 (Jeollanam-do, South Korea) is associated with the physical hazard of adjacent seas.
 
-## Background
+## Why this question
 
-The Korean peninsula holds roughly 35,000 dolmens — about 40% of the world total —
-with the heaviest concentration in the southwest. One proposed explanation is that
-megaliths mark departure or return points of prehistoric sea voyages, and therefore
-cluster where maritime crossings were most dangerous.
+Of roughly 60,000 dolmens worldwide, **about 40,000 stand on the Korean peninsula.**
+They have survived millennia and still sit in open fields — yet **what their builders
+had in mind when raising them remains unknown.**
 
-This repository tests that proposition directly, using survey-report counts rather
-than designation records, and reports the result whether or not it supports the
-hypothesis.
+Competing function hypotheses coexist: burial monument, altar, lineage marker,
+agricultural monument, **route marker**, settlement boundary. Origins are contested
+too — a northern route via the Eurasian **steppe**, a southern maritime route from
+Southeast Asia, or indigenous development. Dolmens are not a purely maritime
+phenomenon; they are fundamentally entangled with **human migration**, of which sea
+routes are only one strand.
+
+This project starts from the most widely held hypothesis — that dolmens are tombs —
+and tests a consequence of it:
+
+```
+If dolmens are tombs, then tombs commemorating those lost at sea
+might have been raised near the waters where they died
+→ coasts facing rougher, more dangerous seas should hold more dolmens
+```
+
+The virtue of this framing is that it is **falsifiable.** Unlike "dolmens symbolise
+elite authority," it can be shown wrong by data.
+
+The larger aim lies beyond dolmen locations: **can we reach probabilistically
+grounded inferences about what ancient people were thinking, from the material
+remains they left behind?** Bronze Age Korea left no texts, so spatial pattern
+itself must serve as evidence. State a prediction of the form "if they thought X,
+sites would be distributed like Y," then check Y against reality.
+
+This repository is one demonstration of that procedure — using survey-report counts
+rather than designation records, and reporting the result whether or not it supports
+the hypothesis. See [`docs/07_discussion.md`](docs/07_discussion.md).
 
 ## Result (v1, provisional)
 
@@ -27,6 +51,18 @@ more dolmens. That specific form is **not supported** by the current data.
 
 This does **not** mean dolmen distribution is unrelated to the marine environment.
 If anything, the opposite.
+
+### The prediction failed — in the opposite direction
+
+In the full specification the wave coefficient is **negative (−0.238, p<0.0001)**.
+Cells adjacent to the roughest waters (mean 1.06 m) hold just **6.9%** of all
+dolmens.
+
+**Dolmens are *scarcer*, not denser, along the most dangerous seas** — the reverse of
+what the commemoration hypothesis predicts.
+
+But "calmer means more" does not hold either: the gentlest quartile (0.29 m) holds
+only **5.4%**.
 
 ### What was found: an inverted-U relationship with wave height
 
@@ -45,6 +81,11 @@ So a relationship exists, and a strong one. It is simply **non-monotonic**, whic
 why linear specifications failed to capture it — and why a rank correlation reports
 near-zero (Spearman ρ = +0.049, p = 0.10): the inverted U cancels out under a
 monotonic measure.
+
+Dolmens concentrate where the sea was **navigable but not placid**. That reads less
+like commemoration and more like **traffic** — and it converges, unexpectedly, on one
+of the older function hypotheses: the **route marker**. The project began from the
+tomb hypothesis, but the data point elsewhere.
 
 ![Wave non-linearity](reports/figures/fig5_wave_nonlinear.png)
 
@@ -128,6 +169,7 @@ without credentials.
 | [04_results](docs/04_results.md) | Full results |
 | [05_limitations](docs/05_limitations.md) | Limitations, graded by severity |
 | [06_v2_roadmap](docs/06_v2_roadmap.md) | v2 plan — the "navigable band" hypothesis |
+| [07_discussion](docs/07_discussion.md) | Motivation, interpretation, and clearly-flagged speculation |
 
 Documentation is in Korean; code and comments are mixed Korean/English.
 
@@ -170,6 +212,23 @@ Conditions that would revise these provisional findings are listed in
 [`docs/05_limitations.md`](docs/05_limitations.md). The main one is that ERA5's 0.25°
 grid cannot resolve local wave conditions in the southwestern archipelago; a nested
 coastal wave model (SWAN, WAVEWATCH III) would be the substantive rebuttal.
+
+## A note on speculation
+
+[`docs/07_discussion.md`](docs/07_discussion.md) §4 records an untested idea kept
+deliberately separate from the findings: Schulz Paulsson (2019) argues from 2,410
+radiocarbon dates that European megaliths spread by sea from northwestern France, and
+trident motifs tied to sea deities recur across widely separated cultures. One might
+wonder whether these are two traces of the same maritime network.
+
+**It might be so — and no more than that can be said here.** That section also records
+why the argument deserves suspicion: it is structurally identical to the
+early-20th-century hyperdiffusionist claim that megaliths spread worldwide from Egypt
+by sea, which radiocarbon dating destroyed. Independent invention explains shared
+motifs at least as well, and the chronological gap between European (5000–4000 BC) and
+East Asian (2500 BC onward) megaliths runs to several millennia.
+
+It is motivation, not result.
 
 ## Sources and licensing
 
